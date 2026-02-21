@@ -1,45 +1,32 @@
-// src/lib/AuthContext.tsx
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-type Student = {
-  email: string;
-  name?: string;
-  program?: string;
-  [key: string]: any;
-};
+// lib/authContext.tsx
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "./firebase";
 
 type AuthContextType = {
-  student: Student | null;
-  login: (student: Student) => void;
-  logout: () => void;
+  user: User | null;
+  loading: boolean;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [student, setStudent] = useState<Student | null>(
-    JSON.parse(localStorage.getItem('student') || 'null')
-  );
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (s: Student) => {
-    setStudent(s);
-    localStorage.setItem('student', JSON.stringify(s));
-  };
-
-  const logout = () => {
-    setStudent(null);
-    localStorage.removeItem('student');
-  };
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ student, login, logout }}>
+    <AuthContext.Provider value={{ user, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
